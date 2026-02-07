@@ -1,0 +1,242 @@
+name: Auto Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout framework code
+        uses: actions/checkout@v4
+        with:
+          path: framework
+
+      - name: Checkout markdown files
+        uses: actions/checkout@v4
+        with:
+          repository: hgkdzbf6/worknote
+          path: markdown
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd framework
+          npm install
+
+      - name: Copy markdown files to output
+        run: |
+          mkdir -p framework/output
+          cp markdown/*.md framework/output/
+
+      - name: Build HTML
+        run: |
+          cd framework/output
+          node ../parser-final-final.js
+
+      - name: Prepare GitHub Pages
+        run: |
+          cd framework
+          mkdir -p docs
+          cp output/*.html docs/
+          cp output/*.md docs/  # Optional: include MD files
+
+          # Create index.html
+          cat > docs/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw 文档库</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0F0F23 0%, #1A1A2E 100%);
+            color: #E2E8F0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            font-size: 1.2em;
+            color: #94A3B8;
+        }
+        .search-box {
+            max-width: 600px;
+            margin: 40px auto;
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid #2D3748;
+            background: rgba(139, 92, 246, 0.1);
+            color: #E2E8F0;
+            font-size: 1em;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: #8B5CF6;
+        }
+        .doc-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        .doc-card {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid #2D3748;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .doc-card:hover {
+            background: rgba(139, 92, 246, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2);
+        }
+        .doc-card h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        .doc-card p {
+            color: #94A3B8;
+            font-size: 0.9em;
+        }
+        .doc-card a {
+            color: #8B5CF6;
+            text-decoration: none;
+        }
+        .doc-card .btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+        }
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94A3B8;
+            border-top: 1px solid #2D3748;
+            margin-top: 60px;
+        }
+        .footer a {
+            color: #8B5CF6;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 OpenClaw 文档库</h1>
+            <p>由 OpenClaw Markdown Processor 自动生成</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="搜索文档..." onkeyup="filterDocs()">
+        </div>
+
+        <div class="doc-list" id="docList">
+EOF
+
+          # List all HTML files as doc cards
+          for file in docs/*.html; do
+            filename=$(basename "$file" .html)
+            title=$(echo "$filename" | sed 's/-/ /g')
+            size=$(du -h "$file" | awk '{print $1}')
+
+            cat >> docs/index.html << DOCCARD
+            <div class="doc-card" data-title="$title">
+                <h3>$title</h3>
+                <p>大小: $size</p>
+                <a href="/$(basename $file)" class="btn">阅读文档</a>
+            </div>
+DOCCARD
+          done
+
+          cat >> docs/index.html << 'EOF'
+        </div>
+
+        <div class="footer">
+            <p>
+                <i class="fas fa-code"></i> Powered by 
+                <a href="https://github.com/hgkdzbf6/markdown_framework">OpenClaw Markdown Framework</a>
+            </p>
+            <p style="margin-top: 10px;">
+                <small>自动部署时间: $(date)</small>
+            </p>
+        </div>
+
+        <script>
+            function filterDocs() {
+                const searchInput = document.getElementById('search');
+                const filter = searchInput.value.toLowerCase();
+                const docCards = document.querySelectorAll('.doc-card');
+
+                docCards.forEach(card => {
+                    const title = card.getAttribute('data-title').toLowerCase();
+                    if (title.includes(filter)) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            }
+        </script>
+    </div>
+</body>
+</html>
+EOF
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./framework/docs
+          publish_branch: main
+          destination_dir: ./
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy to GitHub Pages'
+          keep_files: true
+
+      - name: Display deployment URL
+        run: |
+          echo "🚀 Deployment successful!"
+          echo ""
+          echo "📤 Your site is now live at:"
+          echo "https://hgkdzbf6.github.io/"
+          echo ""
+          echo "⏱️ Allow a few minutes for GitHub Pages to propagate"
+          echo ""
+          echo "📝 Documentation files:"
+          echo "https://hgkdzbf6.github.io/*.html"

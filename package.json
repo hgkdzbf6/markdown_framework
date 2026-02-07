@@ -1,0 +1,28 @@
+{
+  "name": "openclaw-markdown-framework",
+  "version": "1.0.0",
+  "description": "Automated Markdown to HTML converter with OpenClaw style",
+  "main": "parser-final-final.js",
+  "scripts": {
+    "build": "node parser-final-final.js",
+    "watch": "node watcher-new.js",
+    "serve": "node server.js",
+    "publish": "bash publish-final.sh"
+  },
+  "keywords": [
+    "markdown",
+    "html",
+    "converter",
+    "parser",
+    "openclaw"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hgkdzbf6/markdown_framework.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -9,6 +9,11 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
     steps:
       - name: Checkout framework code
         uses: actions/checkout@v4
@@ -47,7 +52,6 @@ jobs:
           cd framework
           mkdir -p docs
           cp output/*.html docs/
-          cp output/*.md docs/  # Optional: include MD files
 
           # Create index.html
           cat > docs/index.html << 'EOF'
@@ -216,27 +220,40 @@ DOCCARD
 </html>
 EOF
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.MY_TOKEN }}
-          publish_dir: ./framework/docs
-          publish_branch: main
-          destination_dir: ./
-          force_orphan: true
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy to GitHub Pages'
-          keep_files: true
+          path: ./framework/docs
 
       - name: Display deployment URL
         run: |
-          echo "🚀 Deployment successful!"
+          echo "🚀 Build completed!"
+          echo ""
+          echo "📁 Generated files:"
+          ls -lh docs/
+          echo ""
+          echo "📝 Next: GitHub Pages will deploy these files"
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Display deployment URL
+        run: |
+          echo "✅ Deployment successful!"
           echo ""
           echo "📤 Your site is now live at:"
           echo "https://hgkdzbf6.github.io/"
-          echo ""
-          echo "⏱️ Allow a few minutes for GitHub Pages to propagate"
-          echo ""
-          echo "📝 Documentation files:"
-          echo "https://hgkdzbf6.github.io/*.html"

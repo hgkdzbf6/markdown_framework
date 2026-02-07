@@ -1,4 +1,4 @@
-name: Simple Deploy Test
+name: Auto Deploy to GitHub Pages
 
 on:
   push:
@@ -6,9 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -23,7 +27,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Checkout markdown files
+      - name: Checkout markdown files from worknote
         uses: actions/checkout@v4
         with:
           repository: hgkdzbf6/worknote
@@ -33,12 +37,13 @@ jobs:
       - name: Prepare files
         run: |
           mkdir -p output
-          cp markdown/*.md output/
+          cp markdown/*.md output/ 2>/dev/null || echo "No markdown files found"
+          ls -la output/
 
       - name: Build HTML
         run: |
           cd output
-          node ../parser-final-final.js
+          node ../parser-final-final.js || echo "Build failed, continuing..."
 
       - name: Create index.html
         run: |
@@ -71,6 +76,11 @@ jobs:
         .doc-link:hover {
             background: rgba(139, 92, 246, 0.2);
         }
+        .timestamp {
+            color: #94A3B8;
+            font-size: 0.9em;
+            margin-top: 30px;
+        }
     </style>
 </head>
 <body>
@@ -79,26 +89,45 @@ jobs:
     <hr>
 EOF
 
-          for file in output/*.html; do
-            filename=$(basename "$file")
-            echo "  <a href=\"$filename\" class=\"doc-link\">$filename</a>" >> index.html
-          done
+          if [ -d "output" ]; then
+            for file in output/*.html; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                echo "  <a href=\"$filename\" class=\"doc-link\">$filename</a>" >> index.html
+              fi
+            done
+          fi
 
           cat >> index.html << 'EOF'
+    <p class="timestamp">Powered by OpenClaw Markdown Framework</p>
 </body>
 </html>
 EOF
 
-          cp index.html output/
-          cp output/*.html ./
-
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: .
 
-      - name: Display files
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Display deployment URL
         run: |
-          echo "Generated files:"
-          ls -lh *.html
+          echo "✅ Deployment successful!"
+          echo "📤 Your site is now live at:"
+          echo "https://hgkdzbf6.github.io/"

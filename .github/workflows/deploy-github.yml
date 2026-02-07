@@ -20,7 +20,7 @@ jobs:
         with:
           repository: hgkdzbf6/worknote
           path: markdown
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -219,7 +219,7 @@ EOF
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.MY_TOKEN }}
           publish_dir: ./framework/docs
           publish_branch: main
           destination_dir: ./
